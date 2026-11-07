@@ -170,8 +170,12 @@ def load_trace(path, window=None):
 
 # ---------------------------------------------------------------- lttng sessions
 
-def _run(cmd, check=True):
-    r = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+def _run(cmd, check=True, timeout=20):
+    try:
+        r = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+                           timeout=timeout)
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(f"{' '.join(cmd)}: no answer after {timeout} s") from e
     if check and r.returncode != 0:
         raise RuntimeError(f"{' '.join(cmd)}: {r.stderr.strip()}")
     return r
@@ -186,7 +190,7 @@ def ensure_lttng_daemons():
 
 
 def session_exists(name):
-    r = subprocess.run(["lttng", "list"], capture_output=True, text=True)
+    r = subprocess.run(["lttng", "list"], capture_output=True, text=True, timeout=20)
     return re.search(rf"^\s*\d+\) {re.escape(name)} ", r.stdout, re.M) is not None
 
 

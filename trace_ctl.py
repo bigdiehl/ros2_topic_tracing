@@ -15,7 +15,10 @@ node is created. Message events are traced only for selected processes (rules).
 """
 
 import argparse
+import contextlib
 import json
+import os
+import signal
 import sys
 import time
 
@@ -72,14 +75,30 @@ def cmd_start(args):
           f"(messages, {'all processes' if args.all else f'{len(ids)} rule(s)'})")
 
 
-def cmd_stop(args):
+def stop_daemon(timeout=5.0):
+    """Ask the daemon to exit and wait until it has (it must detach from relayd before the
+    sessions are destroyed). Returns False if it wasn't running."""
     try:
         with ts.Client(timeout=2) as c:
+            pid = c.status()["pid"]
             c.request("shutdown")
-        stopped = True
     except ts.DaemonError:
-        stopped = False
-    time.sleep(0.2)
+        return False
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return True
+        time.sleep(0.05)
+    print(f"trace daemon {pid} did not exit, killing it", file=sys.stderr)
+    with contextlib.suppress(ProcessLookupError):
+        os.kill(pid, signal.SIGKILL)
+    return True
+
+
+def cmd_stop(args):
+    stopped = stop_daemon()
     gone = ts.destroy_sessions()
     print(f"daemon {'stopped' if stopped else 'not running'}; "
           f"sessions destroyed: {', '.join(gone) or 'none'}")
