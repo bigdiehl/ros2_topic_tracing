@@ -1,8 +1,11 @@
 #!/bin/bash
 # Checks the installed ros-jazzy-ros2-topic-tracing. Run from the repo root
 # (uses test/data). CI runs it after installing the .deb; works locally too.
-set -euo pipefail
-source /opt/ros/jazzy/setup.bash
+set -eo pipefail
+# in GitHub Actions, the failing command becomes an annotation
+trap 'echo "::error title=smoke-test::line $LINENO: $BASH_COMMAND"' ERR
+source /opt/ros/jazzy/setup.bash   # not under set -u: it reads unset variables
+set -u
 P=ros2_topic_tracing
 prefix=$(ros2 pkg prefix $P)
 test "$prefix" = /opt/ros/jazzy
@@ -11,12 +14,15 @@ for cmd in trace_ctl topic_stats topic_diagnostics; do
     ros2 run $P $cmd -h > /dev/null
 done
 # installed scripts find the installed daemon (not a checkout's)
-ros2 run $P topic_stats --trace "$PWD/test/data/talker_listener" -f csv -t /chatter | grep -q /talker
-ros2 launch $P topic_diagnostics.launch.py --show-args | grep -q config
+out=$(ros2 run $P topic_stats --trace "$PWD/test/data/talker_listener" -f csv -t /chatter)
+grep -q /talker <<< "$out"
+out=$(ros2 launch $P topic_diagnostics.launch.py --show-args)
+grep -q config <<< "$out"
 test -f "$prefix/share/$P/config/example.yaml"
 # /usr/bin names work without a sourced ROS environment
 for cmd in trace_ctl topic_stats topic_diagnostics; do
     env -i PATH=/usr/bin:/bin HOME="$HOME" "/usr/bin/$cmd" -h > /dev/null
 done
-env -i PATH=/usr/bin:/bin HOME="$HOME" topic_stats --trace "$PWD/test/data/talker_listener" -f csv | grep -q /talker
+out=$(env -i PATH=/usr/bin:/bin HOME="$HOME" topic_stats --trace "$PWD/test/data/talker_listener" -f csv)
+grep -q /talker <<< "$out"
 echo "smoke test ok"
