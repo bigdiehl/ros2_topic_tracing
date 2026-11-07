@@ -15,10 +15,7 @@ node is created. Message events are traced only for selected processes (rules).
 """
 
 import argparse
-import contextlib
 import json
-import os
-import signal
 import sys
 import time
 
@@ -45,29 +42,22 @@ def persistent_rules(c, args):
     return ids
 
 
-def running():
-    try:
-        ts.Client(timeout=1).close()
-        return True
-    except ts.DaemonError:
-        return False
-
-
 def cmd_start(args):
-    if running():
+    if ts.daemon_running():
         sys.exit("trace daemon already running (trace_ctl status)")
     ts.ensure_lttng_daemons()
     stale = ts.destroy_sessions()
     if stale:
         print(f"removed stale sessions: {', '.join(stale)}", file=sys.stderr)
-    ts.create_sessions()
     try:
+        ts.create_sessions()
         pid = ts.launch_daemon()
         ts.start_sessions()
         time.sleep(args.settle)  # let the live viewer attach before nodes start
         with ts.Client() as c:
             ids = persistent_rules(c, args)
     except Exception:
+        ts.stop_daemon()
         ts.destroy_sessions()
         raise
     print(f"trace daemon pid {pid}, socket {ts.socket_path()}, log {ts.log_path()}")
@@ -75,30 +65,8 @@ def cmd_start(args):
           f"(messages, {'all processes' if args.all else f'{len(ids)} rule(s)'})")
 
 
-def stop_daemon(timeout=5.0):
-    """Ask the daemon to exit and wait until it has (it must detach from relayd before the
-    sessions are destroyed). Returns False if it wasn't running."""
-    try:
-        with ts.Client(timeout=2) as c:
-            pid = c.status()["pid"]
-            c.request("shutdown")
-    except ts.DaemonError:
-        return False
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            return True
-        time.sleep(0.05)
-    print(f"trace daemon {pid} did not exit, killing it", file=sys.stderr)
-    with contextlib.suppress(ProcessLookupError):
-        os.kill(pid, signal.SIGKILL)
-    return True
-
-
 def cmd_stop(args):
-    stopped = stop_daemon()
+    stopped = ts.stop_daemon()
     gone = ts.destroy_sessions()
     print(f"daemon {'stopped' if stopped else 'not running'}; "
           f"sessions destroyed: {', '.join(gone) or 'none'}")
@@ -109,7 +77,7 @@ def cmd_status(args):
         with ts.Client() as c:
             st = c.status()
     except ts.DaemonError as e:
-        sessions = [s for s in (ts.META_SESSION, ts.HOT_SESSION) if ts.session_exists(s)]
+        sessions = ts.existing_sessions()
         sys.exit(f"{e}" + (f"\nstale sessions: {', '.join(sessions)} (trace_ctl stop)"
                            if sessions else ""))
     if args.format == "json":

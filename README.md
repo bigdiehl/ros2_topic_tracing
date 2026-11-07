@@ -25,7 +25,7 @@ ROS 2 Jazzy from apt (its rcl/rmw are built with tracepoints). The user must be 
 | Release .deb | `sudo apt install ./ros-jazzy-ros2-topic-tracing_*.deb` (GitHub Releases) |
 | Build the .deb | `sudo apt install debhelper libbabeltrace2-dev ros-jazzy-ament-cmake-python && dpkg-buildpackage -us -uc -b` |
 | colcon workspace | clone into `src/`, `rosdep install --from-paths src -y`, `colcon build` |
-| Source checkout | `sudo apt install lttng-tools libbabeltrace2-dev cmake g++ pkg-config`, then `cmake -S collector -B collector/build && make -C collector/build` |
+| Source checkout | `sudo apt install lttng-tools libbabeltrace2-dev cmake g++ pkg-config`, then `cmake -S . -B build && make -C build` |
 
 | Installed by | Commands |
 |---|---|

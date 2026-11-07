@@ -2,6 +2,17 @@
 
 Decisions, the reasons for them, and open items. Newest first within each section. Proposals not yet adopted: [working/](../working/README.md).
 
+## Goals
+
+| Goal | How |
+|---|---|
+| Query pub/sub counts for any or all nodes/topics, at any time | `topic_stats` (instant, `-s N` sample, `--trace` offline) |
+| Diagnostics node, about 1 Hz | `topic_diagnostics`: traces only the processes its checks match, while it runs |
+| Start tracing, then launch, then tools in any order | `trace_ctl start` first: names are recorded once, at endpoint creation |
+| Low CPU | Untraced processes cost nothing (vpid tracker); names only = 2.2% of a core |
+| Ad hoc queries, switch everything/selected at any time | Rules from any client; `trace_ctl mode all\|selected` |
+| "Since system start" | `trace_ctl start --all`; rows show `since = start` |
+
 ## Architecture
 
 ```
@@ -35,7 +46,7 @@ trace_ctl.py start  (before the stack)
 |---|---|---|
 | D24 | Diagnostics node configured by a YAML file (`--config`), not ROS parameters. `launch/topic_diagnostics.launch.py` takes `config:=`; falls back to the checkout's script when the package isn't installed | A list of checks maps poorly onto ROS parameters; the launch file gives consumers the standard include |
 | D25 | .deb also installs `/usr/bin/{trace_ctl,topic_stats,topic_diagnostics}`: symlinks to one wrapper that sources `/opt/ros/jazzy/setup.sh` if `AMENT_PREFIX_PATH` is unset, then execs the ament executable | Short names; works from a plain shell. Wrapper is deb-only (`debian/wrapper`) |
-| D23 | **ament_cmake package `ros2_topic_tracing`, distributed as a plain .deb** (`debian/`, hand-written, not bloom) installing into `/opt/ros/jazzy` as `ros-jazzy-ros2-topic-tracing`. Commands via `ros2 run`; `trace_stats` installed as a Python module. `trace_daemon` found next to the running command, then in `collector/build`, then via ament_index | Same layout as buildfarm debs without bloom/rosdep release tooling. `collector/CMakeLists.txt` stays for a ROS-free build (CI, dev) |
+| D23 | **ament_cmake package `ros2_topic_tracing`, distributed as a plain .deb** (`debian/`, hand-written, not bloom) installing into `/opt/ros/jazzy` as `ros-jazzy-ros2-topic-tracing`. Commands via `ros2 run`; `trace_stats` installed as a Python module. `trace_daemon` found next to the running command, then in `build/`, then via ament_index. One `CMakeLists.txt`: without ament it builds only `trace_daemon` | Same layout as buildfarm debs without bloom/rosdep release tooling; the daemon still builds without ROS (CI, dev) |
 | D22 | Tests: offline on a committed 160 KB trace (`test/data`), client against a fake socket, live end-to-end opt-in (`ROS2MON_LIVE_TEST=1`). CI runs all three, the last on Jazzy + LTTng | Most logic is testable without ROS; the live test uses the fixed session names so it must not run by surprise on a dev machine |
 | D21 | Idle live graph not re-polled for 100 ms (hot) / 200 ms (meta) | Each poll is one relayd request per stream. Polling idle meta while hot was busy: relayd 15% -> 2%, daemon 24% -> 13% at 100 Hz. Idle 2.1% -> 1.2%. |
 | D20 | Hot channel trace files capped (1 MiB x 4 per stream); `stop` deletes session output | relayd writes every live session to `~/lttng-traces` too (972 MB accumulated during development). Cap measured to cost nothing. |
@@ -70,6 +81,8 @@ Superseded: D3 (parse babeltrace text), D5 (no attach, CLI reads `/topic_stats`)
 
 - Intra-process comms: add `rclcpp_intra_publish` + `callback_start(is_intra=1)` if used.
 - Containers / PID namespaces: vpid keys, `/proc` pruning and the vpid tracker assume one namespace.
-- Daemon restart loses names (init events are gone). Restart = restart the stack.
+- Daemon restart loses names (init events are gone). Restart = restart the stack. Option: also keep meta in a snapshot-mode session.
+- Start race: `trace_ctl start` waits 1 s (`--settle`) for the live viewer to attach; there is no positive "attached" signal.
+- `lttng destroy` sometimes never returns in CI (not seen locally); `stop` falls back to `--no-wait` after 10 s.
 - Process granularity: a component container is traced whole.
 - The .deb targets Jazzy / noble only (`ROS_DISTRO` in `debian/rules`, names in `debian/control`).

@@ -219,7 +219,9 @@ void start_tracking(int64_t pid, int64_t since)
 // ---------------------------------------------------------------- lttng tracker runner
 
 struct Runner {
+  static constexpr int64_t kRetryNs = 1'000'000'000;
   pid_t child = 0;
+  int64_t retry_at = 0;  // mono ns; after a failed command
   enum class Op { None, TrackAll, UntrackAll, Track, Untrack } op = Op::None;
   std::vector<int64_t> pids;
 
@@ -245,17 +247,22 @@ struct Runner {
     if (rc != 0) {
       log("cannot run lttng: %s", std::strerror(rc));
       child = 0;
-      finish(o, p, false);
+      retry_at = mono_ns() + kRetryNs;
       return;
     }
     op = o;
     pids = std::move(p);
   }
 
+  // Apply a completed command to the state. A failed one changes nothing and is retried:
+  // recording it as applied would report processes as traced while they are not.
   void finish(Op o, const std::vector<int64_t> & p, bool ok)
   {
-    if (!ok) {log("lttng %s failed (state updated anyway)",
-          o == Op::Track || o == Op::TrackAll ? "track" : "untrack");}
+    if (!ok) {
+      log("lttng %s failed, retrying in 1 s", o == Op::Track || o == Op::TrackAll ? "track" : "untrack");
+      retry_at = mono_ns() + kRetryNs;
+      return;
+    }
     int64_t now = wall_ns();
     switch (o) {
       case Op::TrackAll:
@@ -294,7 +301,7 @@ struct Runner {
       finish(op, pids, r > 0 && WIFEXITED(st) && WEXITSTATUS(st) == 0);
       op = Op::None;
     }
-    if (g.offline) {return;}
+    if (g.offline || mono_ns() < retry_at) {return;}
     if (g.desired_all && !g.applied_all) {spawn(Op::TrackAll, {}); return;}
     if (!g.desired_all && g.applied_all) {spawn(Op::UntrackAll, {}); return;}
     if (g.applied_all) {return;}

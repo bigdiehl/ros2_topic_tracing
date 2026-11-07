@@ -4,6 +4,4 @@ Ideas, experiments and proposals not yet adopted. When something is implemented,
 
 | File | Contents |
 |---|---|
-| [GOALS.md](GOALS.md) | What the tooling must do, the questions it must answer |
-| [FINDINGS.md](FINDINGS.md) | LTTng experiments: snapshot mode, process tracker, context filters |
-| [PROPOSAL.md](PROPOSAL.md) | Trace daemon proposal (implemented): goal mapping, what's still open |
+| [FINDINGS.md](FINDINGS.md) | LTTng experiments: snapshot mode (P8, not adopted), process tracker, context filters |

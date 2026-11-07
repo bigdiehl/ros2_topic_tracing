@@ -10,6 +10,7 @@ rmw handles are used for both directions because rcl_publish's publisher_handle 
 not stable for /rosout (rcl copies that publisher struct after init).
 """
 
+import contextlib
 import fnmatch
 import glob
 import itertools
@@ -17,6 +18,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -59,11 +61,11 @@ def log_path():
 
 def daemon_path():
     """$TRACE_DAEMON, else next to the running command (installed: lib/ros2_topic_tracing/),
-    else the source checkout's collector/build, else the installed package."""
+    else the source checkout's build/, else the installed package."""
     if os.environ.get("TRACE_DAEMON"):
         return os.environ["TRACE_DAEMON"]
     here = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0] or ".")), "trace_daemon")
-    source = os.path.join(ROOT, "collector", "build", "trace_daemon")
+    source = os.path.join(ROOT, "build", "trace_daemon")
     for p in (here, source):
         if os.access(p, os.X_OK):
             return p
@@ -189,9 +191,11 @@ def ensure_lttng_daemons():
         _run(["lttng-relayd", "--daemonize"])
 
 
-def session_exists(name):
+def existing_sessions():
+    """Our sessions (META_SESSION, HOT_SESSION) that currently exist."""
     r = subprocess.run(["lttng", "list"], capture_output=True, text=True, timeout=20)
-    return re.search(rf"^\s*\d+\) {re.escape(name)} ", r.stdout, re.M) is not None
+    return [s for s in (META_SESSION, HOT_SESSION)
+            if re.search(rf"^\s*\d+\) {re.escape(s)} ", r.stdout, re.M)]
 
 
 def live_url(name):
@@ -225,15 +229,14 @@ def start_sessions():
 
 def destroy_sessions():
     """Destroy both sessions and delete their relayd output. Returns names destroyed."""
-    done = []
+    done = existing_sessions()
     for s in (META_SESSION, HOT_SESSION):
-        if session_exists(s):
+        if s in done:
             try:
                 _run(["lttng", "destroy", s], check=False, timeout=10)
             except RuntimeError:
                 # seen in CI: destroy waits forever on flushing to relayd
                 _run(["lttng", "destroy", "--no-wait", s], check=False)
-            done.append(s)
         base = os.path.expanduser(os.path.join("~/lttng-traces", socket.gethostname()))
         for d in glob.glob(os.path.join(base, f"{s}-[0-9]*-[0-9]*")):
             shutil.rmtree(d, ignore_errors=True)
@@ -245,7 +248,7 @@ def launch_daemon():
     exe = daemon_path()
     if not os.access(exe, os.X_OK):
         raise DaemonError(f"{exe} not found; install ros-jazzy-ros2-topic-tracing or build it: "
-                          f"cmake -S collector -B collector/build && make -C collector/build")
+                          f"cmake -S . -B build && make -C build")
     cmd = [exe, "live", "--meta", live_url(META_SESSION), "--hot", live_url(HOT_SESSION),
            "--hot-session", HOT_SESSION, "--socket", socket_path(),
            "--lag-ms", str(LAG_MS), "--bucket-ms", str(BUCKET_MS)]
@@ -263,3 +266,33 @@ def launch_daemon():
             time.sleep(0.05)
     proc.terminate()
     raise DaemonError(f"trace_daemon did not come up, see {log_path()}")
+
+
+def daemon_running():
+    try:
+        Client(timeout=1).close()
+        return True
+    except DaemonError:
+        return False
+
+
+def stop_daemon(timeout=5.0):
+    """Ask the daemon to exit and wait until it has (it must detach from relayd before the
+    sessions are destroyed). Returns False if it wasn't running."""
+    try:
+        with Client(timeout=2) as c:
+            pid = c.status()["pid"]
+            c.request("shutdown")
+    except DaemonError:
+        return False
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return True
+        time.sleep(0.05)
+    print(f"trace daemon {pid} did not exit, killing it", file=sys.stderr)
+    with contextlib.suppress(ProcessLookupError):
+        os.kill(pid, signal.SIGKILL)
+    return True

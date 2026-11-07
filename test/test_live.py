@@ -27,6 +27,9 @@ def py(*args, **kw):
 def tracing(daemon, tmp_path, monkeypatch):
     assert shutil.which("lttng") and shutil.which("ros2")
     monkeypatch.setenv("ROS2MON_SOCKET", str(tmp_path / "ros2mon.sock"))
+    # keep other hosts' /chatter out of the counts
+    monkeypatch.setenv("ROS_DOMAIN_ID", str(100 + os.getpid() % 100))
+    monkeypatch.setenv("ROS_AUTOMATIC_DISCOVERY_RANGE", "LOCALHOST")
     r = py("trace_ctl.py", "start")
     assert r.returncode == 0, r.stderr
     # the executables, not `ros2 run` (its wrapper doesn't pass SIGINT on promptly)

@@ -6,8 +6,8 @@ Long-running consumer of the two LTTng live sessions created by `trace_ctl.py st
 
 ```bash
 sudo apt install --no-install-recommends libbabeltrace2-dev   # build; runtime needs only libbabeltrace2-0
-cmake -S collector -B collector/build && make -C collector/build
-collector/build/trace_daemon check                             # prints "ok" if plugins load
+cmake -S . -B build && make -C build     # ament not needed for the daemon alone
+build/trace_daemon check                                       # prints "ok" if plugins load
 ```
 
 ## Modes
@@ -45,6 +45,6 @@ Endpoint fields: `topic dir node pid proc depth tracked count rate avg_rate last
 
 - **Graphs:** two babeltrace2 graphs (`source.ctf.lttng-live` -> `filter.utils.muxer` -> sink), one per session, run in one thread with `poll()` on the socket.
 - **Idle backoff:** a graph that returned AGAIN isn't polled again for `--idle-ms` (hot) or 2x that (meta). Each poll costs one relayd request per stream. Without the backoff relayd used 15% of a core at 100 Hz; with it, 2%.
-- **Tracker:** changes run `lttng track/untrack -u -s <hot> --vpid ...`, one at a time, diffing desired vs applied. Counting starts or resets when the command completes.
+- **Tracker:** changes run `lttng track/untrack -u -s <hot> --vpid ...`, one at a time, diffing desired vs applied. Counting starts or resets when the command succeeds; a failed command changes nothing and is retried after 1 s (track/untrack are idempotent).
 - **Keys:** endpoints are keyed `(vpid, rmw_handle)`. A message seen before its init event creates a placeholder that the init event fills in later. Exited PIDs are pruned via `/proc` every `--prune-s`.
 - **Rates:** 100 ms buckets, evaluated at `wall - lag`, over `[max(now - window, since), now)`.
