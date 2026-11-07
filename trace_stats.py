@@ -228,7 +228,11 @@ def destroy_sessions():
     done = []
     for s in (META_SESSION, HOT_SESSION):
         if session_exists(s):
-            _run(["lttng", "destroy", s], check=False)
+            try:
+                _run(["lttng", "destroy", s], check=False, timeout=10)
+            except RuntimeError:
+                # seen in CI: destroy waits forever on flushing to relayd
+                _run(["lttng", "destroy", "--no-wait", s], check=False)
             done.append(s)
         base = os.path.expanduser(os.path.join("~/lttng-traces", socket.gethostname()))
         for d in glob.glob(os.path.join(base, f"{s}-[0-9]*-[0-9]*")):
