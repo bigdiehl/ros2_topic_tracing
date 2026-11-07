@@ -1,0 +1,33 @@
+Source: ros-jazzy-ros2-topic-tracing
+Section: misc
+Priority: optional
+Maintainer: Spencer Diehl <docdiehl@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+               cmake,
+               pkg-config,
+               libbabeltrace2-dev,
+               ros-jazzy-ament-cmake,
+               ros-jazzy-ament-cmake-python,
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+Homepage: https://github.com/bigdiehl/ros2_topic_tracing
+
+Package: ros-jazzy-ros2-topic-tracing
+Architecture: any
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         lttng-tools,
+         python3-yaml,
+         ros-jazzy-rclpy,
+         ros-jazzy-diagnostic-msgs,
+         ros-jazzy-launch,
+         ros-jazzy-launch-ros,
+         ros-jazzy-ament-index-python,
+Description: ROS 2 pub/sub counts and rates from ros2_tracing (LTTng)
+ Per-node, per-topic publish/receive counts and rates from the ros2:*
+ tracepoints built into Jazzy's rcl/rmw. Monitored nodes need no changes.
+ .
+ Installed in /opt/ros/jazzy as the ament package ros2_topic_tracing:
+ trace_ctl (start/stop tracing, choose traced processes), topic_stats (CLI),
+ topic_diagnostics (node publishing /diagnostics, YAML config) with
+ topic_diagnostics.launch.py, and trace_daemon (C++, babeltrace2).

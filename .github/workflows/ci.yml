@@ -55,3 +55,26 @@ jobs:
       - name: Daemon log
         if: failure()
         run: cat "${XDG_RUNTIME_DIR:-/tmp}"/ros2mon*.log /tmp/pytest-of-*/pytest-current/*/ros2mon.log 2>/dev/null || true
+
+  # The ament package as a plain .deb (debian/), installed and smoke-tested.
+  deb:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+      - name: Install build dependencies
+        run: |
+          sudo apt-get install -y build-essential debhelper cmake pkg-config libbabeltrace2-dev \
+                                  ros-jazzy-ament-cmake ros-jazzy-ament-cmake-python
+      - run: dpkg-buildpackage -us -uc -b
+      - run: mkdir deb && mv ../*.deb deb/
+      - name: Install and smoke-test
+        run: |
+          sudo apt-get install -y ./deb/*.deb
+          debian/smoke-test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: deb/

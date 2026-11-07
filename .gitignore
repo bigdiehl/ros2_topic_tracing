@@ -3,3 +3,11 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 build/
+obj-*/
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/files
+debian/*.substvars
+debian/*.debhelper.log
+debian/ros-jazzy-ros2-topic-tracing/
+debian/tmp/

@@ -1,0 +1,6 @@
+ros-jazzy-ros2-topic-tracing (0.1.0) noble; urgency=medium
+
+  * Initial package: trace_daemon, trace_ctl, topic_stats, topic_diagnostics
+    and topic_diagnostics.launch.py.
+
+ -- Spencer Diehl <docdiehl@gmail.com>  Fri, 06 Nov 2026 12:00:00 -0800

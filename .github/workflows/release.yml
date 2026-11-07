@@ -1,0 +1,42 @@
+name: Release
+
+# A v* tag builds, tests and attaches the .deb to a GitHub Release.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Versions match (tag, package.xml, debian/changelog)
+        run: |
+          xml=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' package.xml)
+          deb=$(head -1 debian/changelog | sed -E 's/^[^(]*\(([^)]*)\).*/\1/')
+          echo "package.xml $xml, debian/changelog $deb, ref $GITHUB_REF_NAME"
+          test "$xml" = "$deb"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then test "$GITHUB_REF_NAME" = "v$xml"; fi
+
+  ci:
+    needs: version
+    uses: ./.github/workflows/ci.yml
+
+  github:
+    if: github.event_name == 'push'
+    needs: ci
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb
+          path: deb/
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" deb/*.deb \
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes

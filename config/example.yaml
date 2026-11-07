@@ -1,0 +1,9 @@
+# topic_diagnostics config. Copy and edit; pass with config:=/path/to/file.yaml
+period: 1.0     # /diagnostics publish period [s]
+window: 5.0     # rate window [s]
+
+checks:
+  # topic: name or glob. dir: pub (rate summed over publishers) | sub (every subscription).
+  # node: name or glob (default any). min_rate/max_rate in Hz; neither: any message is OK.
+  - {name: "lidar", topic: /scan, dir: pub, min_rate: 8, max_rate: 12}
+  - {name: "controller cmd_vel", topic: /cmd_vel, dir: sub, node: /controller, min_rate: 8}

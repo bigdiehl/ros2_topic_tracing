@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ros2_topic_tracing</name>
+  <version>0.1.0</version>
+  <description>Per-node, per-topic pub/sub counts and rates from ros2_tracing (LTTng), a CLI and a /diagnostics node. No changes to monitored nodes.</description>
+  <maintainer email="docdiehl@gmail.com">Spencer Diehl</maintainer>
+  <license>Apache-2.0</license>
+  <url type="repository">https://github.com/bigdiehl/ros2_topic_tracing</url>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+  <build_depend>pkg-config</build_depend>
+  <build_depend>libbabeltrace2-dev</build_depend>
+
+  <exec_depend>lttng-tools</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

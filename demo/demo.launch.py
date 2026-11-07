@@ -10,7 +10,8 @@ Then any time: ./topic_stats.py -s 5   or   ./topic_stats.py -n '/robot1/*'
 from pathlib import Path
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -36,12 +37,9 @@ def launch_setup(context):
 
     if not diagnostics:
         return robots
-    return robots + [
-        ExecuteProcess(
-            cmd=["python3", str(ROOT / "topic_diagnostics.py"),
-                 "--config", str(DEMO / "diagnostics.yaml")],
-            name="topic_diagnostics", output="screen"),
-    ]
+    return robots + [IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(str(ROOT / "launch" / "topic_diagnostics.launch.py")),
+        launch_arguments={"config": str(DEMO / "diagnostics.yaml")}.items())]
 
 
 def generate_launch_description():

@@ -1,4 +1,4 @@
-# ROS 2 Topic Monitoring via ros2_tracing
+# ros2_topic_tracing
 
 Per-node, per-topic pub/sub counts and rates from the `ros2:*` LTTng tracepoints already compiled into Jazzy's rcl/rclcpp/rmw. Monitored nodes need no code changes or rebuilds.
 
@@ -9,6 +9,8 @@ Per-node, per-topic pub/sub counts and rates from the `ros2:*` LTTng tracepoints
 | `topic_diagnostics.py` | ROS node: publishes `/diagnostics`, ERROR when topics are missing, silent, or off-rate |
 | `trace_stats.py` | Shared Python: LTTng session setup, daemon client |
 | `collector/` | `trace_daemon` (C++, babeltrace2 C API): consumes the trace, counts, answers queries |
+| `launch/`, `config/` | `topic_diagnostics.launch.py` (`config:=` arg), example config |
+| `package.xml`, `CMakeLists.txt`, `debian/` | ament_cmake package; plain .deb into `/opt/ros/jazzy` |
 | `demo/` | Dummy multi-robot system with injected faults |
 | `bench/` | Overhead benchmark |
 | `test/`, `.github/` | pytest suite, CI |
@@ -16,12 +18,16 @@ Per-node, per-topic pub/sub counts and rates from the `ros2:*` LTTng tracepoints
 
 ## Install
 
-```bash
-sudo apt install lttng-tools libbabeltrace2-dev cmake g++ pkg-config python3-yaml
-cmake -S collector -B collector/build && make -C collector/build
-```
-
 ROS 2 Jazzy from apt (its rcl/rmw are built with tracepoints). The user must be able to run `lttng-sessiond` (on its own, or in the `tracing` group).
+
+| From | Commands |
+|---|---|
+| Release .deb | `sudo apt install ./ros-jazzy-ros2-topic-tracing_*.deb` (GitHub Releases) |
+| Build the .deb | `sudo apt install debhelper libbabeltrace2-dev ros-jazzy-ament-cmake-python && dpkg-buildpackage -us -uc -b` |
+| colcon workspace | clone into `src/`, `rosdep install --from-paths src -y`, `colcon build` |
+| Source checkout | `sudo apt install lttng-tools libbabeltrace2-dev cmake g++ pkg-config`, then `cmake -S collector -B collector/build && make -C collector/build` |
+
+Installed: `ros2 run ros2_topic_tracing <trace_ctl|topic_stats|topic_diagnostics>`. Source checkout: `./trace_ctl.py` etc. Same arguments. Examples below use the checkout form.
 
 ## Quick start
 
@@ -67,11 +73,23 @@ Columns: `count` (since `since`), `rate` (window), `avg_rate` (first to last mes
 
 ## topic_diagnostics.py
 
+Can start at any time after `trace_ctl start`.
+
 ```bash
-python3 topic_diagnostics.py --config demo/diagnostics.yaml    # can start at any time
+ros2 launch ros2_topic_tracing topic_diagnostics.launch.py config:=/path/to/checks.yaml [name:=...]
+ros2 launch launch/topic_diagnostics.launch.py config:=demo/diagnostics.yaml     # source checkout
 ```
 
-Configured by a YAML file (`--config`); ROS args are ignored. Example: [demo/diagnostics.yaml](demo/diagnostics.yaml).
+From your own launch file:
+
+```python
+IncludeLaunchDescription(
+    PythonLaunchDescriptionSource(PathJoinSubstitution(
+        [FindPackageShare("ros2_topic_tracing"), "launch", "topic_diagnostics.launch.py"])),
+    launch_arguments={"config": "/path/to/checks.yaml"}.items())
+```
+
+Configured by a YAML file. Examples: [config/example.yaml](config/example.yaml), [demo/diagnostics.yaml](demo/diagnostics.yaml).
 
 ```yaml
 period: 1.0                 # publish period [s]
@@ -115,7 +133,9 @@ ROS2MON_LIVE_TEST=1 python3 -m pytest -q test              # + end to end (uses 
 uvx ruff check .
 ```
 
-CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)): lint; build + offline tests without ROS; Jazzy + LTTng end-to-end.
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)): lint; build + offline tests without ROS; Jazzy + LTTng end-to-end; .deb build, install, `debian/smoke-test`.
+
+Release: bump `package.xml` and `debian/changelog` (versions must match), tag `vX.Y.Z`, push the tag. The .deb is attached to the GitHub Release.
 
 ## Overhead
 

@@ -25,12 +25,16 @@ trace_ctl.py start  (before the stack)
 | `trace_ctl.py` | start / stop / status / track / untrack / mode |
 | `topic_stats.py` | CLI. Instant query, `-s N` sample, `--trace` offline |
 | `topic_diagnostics.py` | Checks from a YAML file. A daemon client; can start at any time |
-| `test/`, `.github/workflows/ci.yml` | pytest suite (D22); CI: lint, build + offline, Jazzy end-to-end |
+| `launch/`, `config/` | `topic_diagnostics.launch.py`, example config (D24) |
+| `package.xml`, `CMakeLists.txt`, `debian/` | ament_cmake package, plain .deb (D23) |
+| `test/`, `.github/workflows/` | pytest suite (D22); CI: lint, build + offline, Jazzy end-to-end, .deb. Release on `v*` tags |
 
 ## Decisions
 
 | # | Decision | Why |
 |---|---|---|
+| D24 | Diagnostics node configured by a YAML file (`--config`), not ROS parameters. `launch/topic_diagnostics.launch.py` takes `config:=`; falls back to the checkout's script when the package isn't installed | A list of checks maps poorly onto ROS parameters; the launch file gives consumers the standard include |
+| D23 | **ament_cmake package `ros2_topic_tracing`, distributed as a plain .deb** (`debian/`, hand-written, not bloom) installing into `/opt/ros/jazzy` as `ros-jazzy-ros2-topic-tracing`. Commands via `ros2 run`; `trace_stats` installed as a Python module. `trace_daemon` found next to the running command, then in `collector/build`, then via ament_index | Same layout as buildfarm debs without bloom/rosdep release tooling. `collector/CMakeLists.txt` stays for a ROS-free build (CI, dev) |
 | D22 | Tests: offline on a committed 160 KB trace (`test/data`), client against a fake socket, live end-to-end opt-in (`ROS2MON_LIVE_TEST=1`). CI runs all three, the last on Jazzy + LTTng | Most logic is testable without ROS; the live test uses the fixed session names so it must not run by surprise on a dev machine |
 | D21 | Idle live graph not re-polled for 100 ms (hot) / 200 ms (meta) | Each poll is one relayd request per stream. Polling idle meta while hot was busy: relayd 15% -> 2%, daemon 24% -> 13% at 100 Hz. Idle 2.1% -> 1.2%. |
 | D20 | Hot channel trace files capped (1 MiB x 4 per stream); `stop` deletes session output | relayd writes every live session to `~/lttng-traces` too (972 MB accumulated during development). Cap measured to cost nothing. |
@@ -67,5 +71,4 @@ Superseded: D3 (parse babeltrace text), D5 (no attach, CLI reads `/topic_stats`)
 - Containers / PID namespaces: vpid keys, `/proc` pruning and the vpid tracker assume one namespace.
 - Daemon restart loses names (init events are gone). Restart = restart the stack.
 - Process granularity: a component container is traced whole.
-- Packaging / distribution: not decided (ament package + deb via bloom, or a plain deb).
-- Diagnostics config is a YAML file, not ROS parameters.
+- The .deb targets Jazzy / noble only (`ROS_DISTRO` in `debian/rules`, names in `debian/control`).

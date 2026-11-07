@@ -1,0 +1,26 @@
+#!/usr/bin/make -f
+# ament_cmake package installed into /opt/ros/jazzy, like a bloom-generated ros-jazzy-* deb.
+
+ROS_DISTRO = jazzy
+ROS = /opt/ros/$(ROS_DISTRO)
+SETUP = . $(ROS)/setup.sh
+
+# the system Python, which ROS uses (not one earlier in PATH)
+export PATH := /usr/bin:$(PATH)
+
+%:
+	dh $@ --buildsystem=cmake
+
+override_dh_auto_configure:
+	$(SETUP) && dh_auto_configure -- \
+	    -DCMAKE_INSTALL_PREFIX=$(ROS) -DCMAKE_PREFIX_PATH=$(ROS) -DBUILD_TESTING=OFF \
+	    -DPython3_EXECUTABLE=/usr/bin/python3
+
+override_dh_auto_build:
+	$(SETUP) && dh_auto_build
+
+override_dh_auto_install:
+	$(SETUP) && dh_auto_install
+
+# tests need lttng-sessiond and the repo checkout; CI runs them separately
+override_dh_auto_test:

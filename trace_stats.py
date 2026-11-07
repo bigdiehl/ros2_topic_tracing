@@ -19,6 +19,7 @@ import re
 import shutil
 import socket
 import subprocess
+import sys
 import time
 
 META_EVENTS = [
@@ -33,6 +34,7 @@ HOT_SESSION = "ros2mon_hot"
 INTERNAL_TOPICS = re.compile(r"^/rosout$|/parameter_events$|/_action/|^/ros_discovery_info$")
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+PACKAGE = "ros2_topic_tracing"
 LIVE_TIMER_US = 200_000
 LAG_MS = int(2 * LIVE_TIMER_US / 1000 + 300)  # live delivery delay allowance
 BUCKET_MS = int(os.environ.get("TRACE_STATS_BUCKET_MS", "100"))
@@ -56,7 +58,20 @@ def log_path():
 
 
 def daemon_path():
-    return os.environ.get("TRACE_DAEMON") or os.path.join(ROOT, "collector", "build", "trace_daemon")
+    """$TRACE_DAEMON, else next to the running command (installed: lib/ros2_topic_tracing/),
+    else the source checkout's collector/build, else the installed package."""
+    if os.environ.get("TRACE_DAEMON"):
+        return os.environ["TRACE_DAEMON"]
+    here = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0] or ".")), "trace_daemon")
+    source = os.path.join(ROOT, "collector", "build", "trace_daemon")
+    for p in (here, source):
+        if os.access(p, os.X_OK):
+            return p
+    try:
+        from ament_index_python.packages import get_package_prefix
+        return os.path.join(get_package_prefix(PACKAGE), "lib", PACKAGE, "trace_daemon")
+    except Exception:
+        return source
 
 
 # ---------------------------------------------------------------- client
@@ -221,8 +236,8 @@ def launch_daemon():
     """Start trace_daemon detached; wait until its socket answers."""
     exe = daemon_path()
     if not os.access(exe, os.X_OK):
-        raise DaemonError(f"{exe} not found; build it: cmake -S collector -B collector/build "
-                          f"&& make -C collector/build")
+        raise DaemonError(f"{exe} not found; install ros-jazzy-ros2-topic-tracing or build it: "
+                          f"cmake -S collector -B collector/build && make -C collector/build")
     cmd = [exe, "live", "--meta", live_url(META_SESSION), "--hot", live_url(HOT_SESSION),
            "--hot-session", HOT_SESSION, "--socket", socket_path(),
            "--lag-ms", str(LAG_MS), "--bucket-ms", str(BUCKET_MS)]
