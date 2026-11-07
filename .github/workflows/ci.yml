@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_call:
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uvx ruff check .
+
+  # No ROS: build trace_daemon, offline tests on test/data, client wire format.
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ pkg-config libbabeltrace2-dev python3-pytest python3-yaml
+      - run: cmake -S collector -B collector/build -DCMAKE_CXX_FLAGS=-Werror
+      - run: make -C collector/build
+      - run: python3 -m pytest -q test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trace_daemon
+          path: collector/build/trace_daemon
+
+  # Jazzy + LTTng: diagnostics checks and the end-to-end test (trace_ctl start,
+  # talker/listener, topic_stats -s, stop).
+  ros:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y cmake g++ pkg-config libbabeltrace2-dev lttng-tools python3-pytest \
+                                  ros-jazzy-ros-base ros-jazzy-demo-nodes-cpp ros-jazzy-diagnostic-msgs
+      - run: cmake -S collector -B collector/build -DCMAKE_CXX_FLAGS=-Werror && make -C collector/build
+      - name: Tests (live)
+        shell: bash
+        env:
+          ROS2MON_LIVE_TEST: "1"
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          python3 -m pytest -v test
+      - name: Daemon log
+        if: failure()
+        run: cat "${XDG_RUNTIME_DIR:-/tmp}"/ros2mon*.log /tmp/pytest-of-*/pytest-current/*/ros2mon.log 2>/dev/null || true

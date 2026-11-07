@@ -1,0 +1,17 @@
+# topic_diagnostics config for demo/demo.launch.py
+period: 1.0
+window: 3.0
+
+checks:
+  - {topic: /chatter, dir: pub, node: /talker, min_rate: 0.8, max_rate: 1.2}
+  - {topic: /chatter, dir: sub, min_rate: 0.8}
+
+  # every robot's publishers (glob: /robot*/...) ; rate is summed over robots
+  - {name: "robot1 camera", topic: /robot1/camera/image, dir: pub, min_rate: 13, max_rate: 17}
+  - {name: "robot1 lidar",  topic: /robot1/scan,         dir: pub, min_rate: 8}
+  - {name: "robot1 imu->odometry", topic: /robot1/imu, dir: sub, node: /robot1/odometry, min_rate: 45}
+  - {name: "robot2 lidar",  topic: /robot2/scan,         dir: pub, min_rate: 8}
+  - {name: "robot2 cmd_vel", topic: /robot2/cmd_vel,     dir: sub, min_rate: 8}
+
+  # orphan subscription: dashboard waits for /robot1/battery, nobody publishes it
+  - {name: "robot1 battery", topic: /robot1/battery, dir: sub}
