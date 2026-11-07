@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ROS 2 node: publish /diagnostics for topic activity measured with LTTng tracing.
 
-Needs the trace daemon (trace_ctl.py start, before the stack). Can start at any time:
+Needs the trace daemon (trace_ctl start, before the stack). Can start at any time:
 it asks the daemon to trace the processes its checks match, for as long as it runs.
 
   python3 topic_diagnostics.py --config demo/diagnostics.yaml

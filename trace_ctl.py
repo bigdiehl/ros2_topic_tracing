@@ -4,14 +4,14 @@
 Run `start` BEFORE launching the stack: node/topic names are only recorded when a
 node is created. Message events are traced only for selected processes (rules).
 
-  trace_ctl.py start                     names only; diagnostics/CLI select processes later
-  trace_ctl.py start --all               record everything from the start
-  trace_ctl.py start -n '/robot1/*'      always trace processes hosting matching nodes
-  trace_ctl.py status
-  trace_ctl.py mode all | selected       switch between everything and rule-selected
-  trace_ctl.py track -t '/scan*'         add a persistent rule
-  trace_ctl.py untrack 3 | --all         remove persistent rule(s)
-  trace_ctl.py stop
+  trace_ctl start                     names only; diagnostics/CLI select processes later
+  trace_ctl start --all               record everything from the start
+  trace_ctl start -n '/robot1/*'      always trace processes hosting matching nodes
+  trace_ctl status
+  trace_ctl mode all | selected       switch between everything and rule-selected
+  trace_ctl track -t '/scan*'         add a persistent rule
+  trace_ctl untrack 3 | --all         remove persistent rule(s)
+  trace_ctl stop
 """
 
 import argparse
@@ -52,7 +52,7 @@ def running():
 
 def cmd_start(args):
     if running():
-        sys.exit("trace daemon already running (trace_ctl.py status)")
+        sys.exit("trace daemon already running (trace_ctl status)")
     ts.ensure_lttng_daemons()
     stale = ts.destroy_sessions()
     if stale:
@@ -91,7 +91,7 @@ def cmd_status(args):
             st = c.status()
     except ts.DaemonError as e:
         sessions = [s for s in (ts.META_SESSION, ts.HOT_SESSION) if ts.session_exists(s)]
-        sys.exit(f"{e}" + (f"\nstale sessions: {', '.join(sessions)} (trace_ctl.py stop)"
+        sys.exit(f"{e}" + (f"\nstale sessions: {', '.join(sessions)} (trace_ctl stop)"
                            if sessions else ""))
     if args.format == "json":
         print(json.dumps(st, indent=2))

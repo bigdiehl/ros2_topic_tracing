@@ -1,0 +1,3 @@
+usr/lib/ros2-topic-tracing/wrapper usr/bin/trace_ctl
+usr/lib/ros2-topic-tracing/wrapper usr/bin/topic_stats
+usr/lib/ros2-topic-tracing/wrapper usr/bin/topic_diagnostics

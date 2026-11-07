@@ -1,0 +1,5 @@
+#!/bin/sh
+# /usr/bin/{trace_ctl,topic_stats,topic_diagnostics} -> the ament executables.
+# Sources ROS Jazzy if no ROS environment is set (needed for rclpy and trace_stats).
+[ -n "$AMENT_PREFIX_PATH" ] || . /opt/ros/jazzy/setup.sh
+exec /opt/ros/jazzy/lib/ros2_topic_tracing/"$(basename "$0")" "$@"

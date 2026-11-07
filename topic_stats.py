@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Dump ROS 2 pub/sub statistics for all or selected nodes/topics (needs trace_ctl.py start).
+"""Dump ROS 2 pub/sub statistics for all or selected nodes/topics (needs trace_ctl start).
 
-  topic_stats.py                          traced endpoints, counts since tracing began (instant)
-  topic_stats.py -s 5                     trace every process for 5 s, then print
-  topic_stats.py -s 5 -n '/robot1/*'      trace only matching processes for 5 s
-  topic_stats.py -t '*scan*' --known      also list matching endpoints that are not traced
-  topic_stats.py -w [-s 3]                refresh until Ctrl-C (with -s: keep tracing the selection)
-  topic_stats.py --trace ~/.ros/tracing/foo -f json     offline, a recorded trace
+  topic_stats                         traced endpoints, counts since tracing began (instant)
+  topic_stats -s 5                    trace every process for 5 s, then print
+  topic_stats -s 5 -n '/robot1/*'     trace only matching processes for 5 s
+  topic_stats -t '*scan*' --known     also list matching endpoints that are not traced
+  topic_stats -w [-s 3]               refresh until Ctrl-C (with -s: keep tracing the selection)
+  topic_stats --trace ~/.ros/tracing/foo -f json   offline, a recorded trace
 
 SINCE: how long the endpoint has been counted; "start" = since it was created.
 """
@@ -45,7 +45,7 @@ def fmt_table(snap, rows, args, hidden):
                    if hidden else "(no matching endpoints)")
     unt = snap["untracked"]
     if unt and not args.no_untracked:
-        out.append("\nUnnamed endpoints (process started before trace_ctl.py start):")
+        out.append("\nUnnamed endpoints (process started before trace_ctl start):")
         out += [f"  {u['proc']:<20} pid={u['pid']:<8} {u['dir']}  count={u['count']}" for u in unt]
     out.append(f"\nmode {snap['mode']}  traced procs {snap['traced_procs']}/{snap['procs']}  "
                f"window {snap['window']:.1f} s  events {snap['events']}  "

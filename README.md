@@ -27,7 +27,13 @@ ROS 2 Jazzy from apt (its rcl/rmw are built with tracepoints). The user must be 
 | colcon workspace | clone into `src/`, `rosdep install --from-paths src -y`, `colcon build` |
 | Source checkout | `sudo apt install lttng-tools libbabeltrace2-dev cmake g++ pkg-config`, then `cmake -S collector -B collector/build && make -C collector/build` |
 
-Installed: `ros2 run ros2_topic_tracing <trace_ctl|topic_stats|topic_diagnostics>`. Source checkout: `./trace_ctl.py` etc. Same arguments. Examples below use the checkout form.
+| Installed by | Commands |
+|---|---|
+| .deb | `trace_ctl`, `topic_stats`, `topic_diagnostics` in `/usr/bin` (source ROS Jazzy if no ROS env is set), and `ros2 run` |
+| colcon | `ros2 run ros2_topic_tracing <trace_ctl\|topic_stats\|topic_diagnostics>` |
+| checkout | `./trace_ctl.py`, `./topic_stats.py`, `./topic_diagnostics.py` |
+
+Same arguments everywhere. Examples below use the checkout form.
 
 ## Quick start
 

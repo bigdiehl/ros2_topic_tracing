@@ -86,7 +86,7 @@ class Client:
             self.sock.connect(path or socket_path())
         except OSError as e:
             self.sock.close()
-            raise DaemonError(f"trace daemon not running ({e.strerror}); run trace_ctl.py start") from e
+            raise DaemonError(f"trace daemon not running ({e.strerror}); run trace_ctl start") from e
         self.buf = b""
 
     def request(self, *words, **params):
